@@ -8,6 +8,20 @@
 #include "msg_data.h"
 #include <pthread.h>
 
+struct real_data{
+   char userID[50];
+   char password[50];
+   char sex[10];
+   char mobile[50];
+   char email[50];
+   int sequence;
+};
+
+struct message{
+   long msg_type;// 0 is insert into MYSQL DATABASE;
+   struct real_data data;
+};
+
 #define NUMTHRDS 3 // 쓰레드 개수
 pthread_t callThd[NUMTHRDS]; // 쓰레드 3개 생성 할 것임
 pthread_mutex_t dbmutex; // DB MUTEX
