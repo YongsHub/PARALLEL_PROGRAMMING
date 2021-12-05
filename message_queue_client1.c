@@ -12,6 +12,19 @@
 pthread_t callThd[NUMTHRDS]; // 쓰레드 3개 생성 할 것임
 pthread_mutex_t dbmutex; // DB MUTEX
 
+struct real_data{
+   char userID[50];
+   char password[50];
+   char sex[10];
+   char mobile[50];
+   char email[50];
+   int sequence;
+};
+
+struct message{
+   long msg_type;// 0 is insert into MYSQL DATABASE;
+   struct real_data data;
+};
 
 int sequence = 0; // sequence number
 struct message join();
