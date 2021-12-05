@@ -8,6 +8,6 @@ NAMED PIPE를 활용
 
 
 응용 프로그램2
-위와 같지만 프로그램2는 고급 IPC 기법중 Message Queue를 활용하여 프로세스간 통신함.
+위와 같지만 프로그램2는 고급IPC 기법중 Message Queue를 활용하여 프로세스간 통신함.
 
 
