@@ -114,8 +114,15 @@ struct message join(){
             continue;
         }
         printf("\n");
-        printf("3) 성별을 입력하시오 : ");
-        scanf("%s",data.sex);
+        printf("3) 성별을 입력하시오 : (MEN or WOMEN)");
+        while(1){
+            scanf("%s",data.sex);
+            if(!strcmp(data.sex,"MEN")){
+            	break;
+            }else if(!strcmp(data.sex,"WOMEN")){
+            	break;
+            }else printf("try again\n");
+        }
         printf("\n");
         printf("4) 전화번호를 입력하시오 :");
         scanf("%s",data.mobile);
