@@ -1,0 +1,2 @@
+# PARALLEL_PROGRAMMING
+SERVER-CLIENT모델간 IPC기법을 활용하여 병렬적 응용프로그램 만들기
