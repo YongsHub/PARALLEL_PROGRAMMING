@@ -8,11 +8,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-
+#include <time.h>
 #include "msg_data.h" // define struct message & real_data
 
 
 #define NUMTHRDS 6 // thread Num
+#define BILLION 1000000000L;
 pthread_t callThd[NUMTHRDS]; // thread 3
 pthread_mutex_t dbmutex; // DB MUTEX
 
@@ -35,7 +36,7 @@ int main(int argc, char* agrv[])
     
     
     message_insert(3,"./FIFO1"); // Named Pipe: FIFO1 Routine 
-    message_insert(6,"./FIFO2"); // NAMED pIPE: FIFO2 Routine
+    message_insert(6,"./FIFO2"); // NAMED Pipe: FIFO2 Routine
     pthread_mutex_init(&dbmutex, NULL); // Initialize mutex
     pthread_attr_init(&attr); // pthread attribute's initialize to attr object
     pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_JOINABLE);
@@ -155,7 +156,8 @@ void message_insert(int loop, char *fileName){
     int i;
     int j=0;
     char buff[sizeof(msg[0])];
-    
+    struct timespec start,stop; // 사용한 IPC 기법에 따른 성능 차이를 측정하기 위해서
+    double accum; // 시간 측정값 받기 위한 변수
     
     if((fp=open(fileName,O_RDONLY)) < 0){
     	printf("open fifo failed\n");
@@ -166,7 +168,11 @@ void message_insert(int loop, char *fileName){
     }else if(loop == 6){ // seq 3,4,5 so loop = 6
     	i = 3;
     }
-    	
+    
+    if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Named PIPE 기법을 이용해서 Message 를 Receive 할 때, 걸리는 시간 측정 위해서 start
+		perror("clock gettime");
+		pthread_exit(NULL);
+	    }
     for(;i<loop;i++){
     	if(read(fp,buff,sizeof(buff))> 0){
     		printf("receive is success\n");
@@ -197,4 +203,10 @@ void message_insert(int loop, char *fileName){
 		j=0;
 	}
     }
+    if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Named PIPE 기법을 이용해서 Message 를 Receive 할 때, 걸리는 시간 측정 위해서 stop
+		perror("clock gettime");
+		pthread_exit(NULL);
+	    }
+	    accum = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / (double)BILLION;
+	    printf("Read message in PIPE gets time : %.9f\n",accum);
 }
