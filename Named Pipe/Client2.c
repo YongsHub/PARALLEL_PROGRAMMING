@@ -106,7 +106,6 @@ void* mysql_query(void *arg){
 	    printf("%s\n",buff);
 	    accum = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / (double)BILLION;
 	    printf("write message in PIPE gets time : %.9f\n",accum);
-	    printf("%s\n",buff);
     }
     close(fp);
     printf("message sent\n");
