@@ -8,7 +8,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #define NUMTHRDS 3 // 쓰레드 개수
+#define BILLION 1000000000L;
+
 pthread_t callThd[NUMTHRDS]; // 쓰레드 3개 생성 할 것임
 pthread_mutex_t dbmutex; // DB MUTEX
 
@@ -79,18 +82,32 @@ void* mysql_query(void *arg){
     int fp; //file pointer
     struct message *msg = (struct message*)arg;
     char buff[sizeof(*msg)];
+    struct timespec start,stop; // 사용한 IPC 기법에 따른 성능 차이를 측정하기 위해서
+    double accum; // 시간 측정값 받기 위한 변수
+    
     pthread_mutex_lock(&dbmutex);
     msg->data.sequence = ++sequence;
     printf("sequence: %d\n",sequence); 
+    pthread_mutex_unlock(&dbmutex);
     if((fp = open("./FIFO2", O_WRONLY)) < 0){
 	    printf("file open error\n");
 	    exit(1);
     }else{
 	    sprintf(buff,"%d,%s,%s,%s,%s,%s",msg->data.sequence,msg->data.userID,msg->data.password,msg->data.sex,msg->data.mobile,msg->data.email);
+	    if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Named PIPE 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 start
+		perror("clock gettime");
+		pthread_exit(NULL);
+	    }
 	    write(fp, buff, sizeof(buff));
+	    if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Named PIPE 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 stop
+		perror("clock gettime");
+		pthread_exit(NULL);
+	    }
+	    printf("%s\n",buff);
+	    accum = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / (double)BILLION;
+	    printf("write message in PIPE gets time : %.9f\n",accum);
 	    printf("%s\n",buff);
     }
-    pthread_mutex_unlock(&dbmutex);
     close(fp);
     printf("message sent\n");
 }
