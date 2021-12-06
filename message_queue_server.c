@@ -8,24 +8,13 @@
 #include <sys/ipc.h> // for message queue
 #include <sys/types.h> // for message queue
 #include "msg_data.h" // define struct message & real_data
+#include <time.h>
 
 #define NUMTHRDS 6 // thread Num
+#define BILLION 1000000000L;
+
 pthread_t callThd[NUMTHRDS]; // thread 3
 pthread_mutex_t dbmutex; // DB MUTEX
-
-struct real_data{
-   char userID[50];
-   char password[50];
-   char sex[10];
-   char mobile[50];
-   char email[50];
-   int sequence;
-};
-
-struct message{
-   long msg_type;// 0 is insert into MYSQL DATABASE;
-   struct real_data data;
-};
 
 
 void* t_function();
@@ -47,10 +36,11 @@ int main(int argc, char* agrv[])
     int msqid1; // message queue id
     int msqid2; // message queue id
     struct message msg[6]; // message
-
+    struct timespec start,stop; // 사용한 IPC 기법에 따른 성능 차이를 측정하기 위해서
+    double accum; // 시간 측정값 받기 위한 변수
 
     if((msqid1=msgget(key1,IPC_CREAT|0666))== -1){ // msqid get message queue id
-       printf("message receive failed\n");
+	    printf("message receive failed\n");
     }
     
     if((msqid2=msgget(key2,IPC_CREAT|0666))== -1){ // msqid get message queue id
@@ -58,17 +48,20 @@ int main(int argc, char* agrv[])
     }
 
 
-    
+    if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Message IPC 기법을 이용해서 Message 를 Receive 할 때, 걸리는 시간 측정 위해서 start
+		perror("clock gettime");
+		pthread_exit(NULL);
+	}
     for(i=0;i<3;i++){
-       if(msgrcv(msqid1, &msg[i], sizeof(struct real_data),1,0) == -1){ // if msgrcv failed, then exit
-           printf("msgrcv failed\n");
-           exit(0);
-       }else{
-          printf("msgrcv is successed\n");
-           printf("sequence: %d, user ID: %s, password : %s, sex: %s, mobile: %s, email: %s\n",msg[i].data.sequence, msg[i].data.userID, msg[i].data.password, msg[i].data.sex, msg[i].data.mobile, msg[i].data.email);
-      
-       }
-       
+    	if(msgrcv(msqid1, &msg[i], sizeof(struct real_data),1,0) == -1){ // if msgrcv failed, then exit
+        	printf("msgrcv failed\n");
+        	exit(0);
+    	}else{
+    		printf("msgrcv is successed\n");
+        	printf("sequence: %d, user ID: %s, password : %s, sex: %s, mobile: %s, email: %s\n",msg[i].data.sequence, msg[i].data.userID, msg[i].data.password, msg[i].data.sex, msg[i].data.mobile, msg[i].data.email);
+		
+    	}
+    	
     }
 
     for(i=3;i<6;i++){
@@ -82,13 +75,20 @@ int main(int argc, char* agrv[])
         }
 
     }
+    if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Message IPC 기법을 이용해서 Message 를 Receive 할 때, 걸리는 시간 측정 위해서 stop
+		perror("clock gettime");
+		pthread_exit(NULL);
+	}
 
 
 
+    accum = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / (double)BILLION;
+    printf("All message received\n");
+    printf("All 메시지 receive하는데 걸리는 시간 : %.9f\n",accum);
 
     if(msgctl(msqid1,IPC_RMID,NULL)==-1){ // if message queue delete's failed, then exit
-       printf("msgctl falied\n");
-   exit(0);
+    	printf("msgctl falied\n");
+	exit(0);
     }
 
     if(msgctl(msqid2,IPC_RMID,NULL)==-1){ // if message queue delete's failed, then exit
@@ -116,24 +116,24 @@ int main(int argc, char* agrv[])
 
         /*IN here, we need to make Multi-Thread like 0: Insert, 1: Delete 2: Update 3: Read */
         for(i=0; i<NUMTHRDS; i++){//Thread NUM MAKES LOOP
-              tid = pthread_create(&callThd[i], &attr,query_insert,(void*)&msg[i]);
-              if(tid < 0){
-                      perror("thread create error : ");
-                      exit(0);
-             }
+       		 tid = pthread_create(&callThd[i], &attr,query_insert,(void*)&msg[i]);
+       		 if(tid < 0){
+               		 perror("thread create error : ");
+               		 exit(0);
+         	 }
        }
 
         
         pthread_attr_destroy(&attr);
 
-   for(i=0; i<NUMTHRDS; i++){ // it makes all threads wait for execute's all
-      pthread_join(callThd[i], (void**)status);
-   } 
-   pthread_mutex_destroy(&dbmutex); // destroy
-   pthread_exit(NULL);
-   
-   mysql_free_result(res);
-   mysql_close(&conn_ptr);
+	for(i=0; i<NUMTHRDS; i++){ // it makes all threads wait for execute's all
+		pthread_join(callThd[i],&status);
+	} 
+	pthread_mutex_destroy(&dbmutex); // destroy
+	pthread_exit(NULL);
+	
+	mysql_free_result(res);
+	mysql_close(&conn_ptr);
         return 0;
 }
 
@@ -161,29 +161,29 @@ void *t_function()
 }
 
 void* query_execute(){// we will get argument about 1: insert 2: delete 3: update 4: read
-   sleep(1);
-   int fields;
-   int cnt;
-   pid_t pid;            // process id
-       pthread_t tid;        // thread id
-   
-   pid = getpid();
-       tid = pthread_self();
+	sleep(1);
+	int fields;
+	int cnt;
+	pid_t pid;            // process id
+    	pthread_t tid;        // thread id
+	
+	pid = getpid();
+    	tid = pthread_self();
  
-       int i = 0;
+    	int i = 0;
     
-       while (i<3)   // 0,1,2 까지만 loop 돌립니다.
-       {
-           // 넘겨받은 쓰레드 이름과 
-           // 현재 process id 와 thread id 를 함께 출력
-           printf("pid:%u, tid:%x --- %d\n", 
-               (unsigned int)pid, (unsigned int)tid, i);
-           i++;
-           sleep(1);  // 1초간 대기
-       }
-   
-   pthread_mutex_lock(&dbmutex);
-   if(mysql_query(&conn_ptr, "select * from users")) // query start
+    	while (i<3)   // 0,1,2 까지만 loop 돌립니다.
+    	{
+        	// 넘겨받은 쓰레드 이름과 
+        	// 현재 process id 와 thread id 를 함께 출력
+        	printf("pid:%u, tid:%x --- %d\n", 
+            	(unsigned int)pid, (unsigned int)tid, i);
+        	i++;
+        	sleep(1);  // 1초간 대기
+    	}
+	
+	pthread_mutex_lock(&dbmutex);
+	if(mysql_query(&conn_ptr, "select * from users")) // query start
     {
         printf("%s\n", mysql_error(&conn_ptr)); // if it makes error, then exit
         exit(1);
@@ -210,20 +210,20 @@ void* query_execute(){// we will get argument about 1: insert 2: delete 3: updat
 }
 
 void * query_insert(void *arg){
-   struct message *msg = (struct message*)arg;
+	struct message *msg = (struct message*)arg;
         char buff[500];
-   
-   pthread_mutex_lock(&dbmutex);
-      sprintf(buff,"insert into users values""('%d','%s','%s','%s','%s','%s')",msg->data.sequence,msg->data.userID,msg->data.password,msg->data.sex,msg->data.mobile,msg->data.email);
-   if(mysql_query(&conn_ptr,buff)) // query start insert into users
-     {
-            printf("%s\n", mysql_error(&conn_ptr)); // if it makes error, then exit
-          exit(1);
+	
+	pthread_mutex_lock(&dbmutex);
+   	sprintf(buff,"insert into users values""('%d','%s','%s','%s','%s','%s')",msg->data.sequence,msg->data.userID,msg->data.password,msg->data.sex,msg->data.mobile,msg->data.email);
+	if(mysql_query(&conn_ptr,buff)) // query start insert into users
+  	{
+        	 printf("%s\n", mysql_error(&conn_ptr)); // if it makes error, then exit
+   		 exit(1);
         }
-   else
-   {
-         printf("DATA INSERT SUCCESS\n");
-        sleep(1);
-      }
-    pthread_mutex_unlock(&dbmutex);
+	else
+	{
+  		 printf("DATA INSERT SUCCESS\n");
+	 	 sleep(1);
+   	}
+	 pthread_mutex_unlock(&dbmutex);
 }
