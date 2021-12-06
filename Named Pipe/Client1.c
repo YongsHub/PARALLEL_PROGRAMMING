@@ -96,12 +96,12 @@ void* mysql_query(void *arg){
 	    exit(1);
     }else{
 	    sprintf(buff,"%d,%s,%s,%s,%s,%s",msg->data.sequence,msg->data.userID,msg->data.password,msg->data.sex,msg->data.mobile,msg->data.email);
-	    if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Message IPC 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 start
+	    if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Named PIPE 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 start
 		perror("clock gettime");
 		pthread_exit(NULL);
 	    }
 	    write(fp, buff, sizeof(buff));
-	    if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Message IPC 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 stop
+	    if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Named PIPE 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 stop
 		perror("clock gettime");
 		pthread_exit(NULL);
 	    }
