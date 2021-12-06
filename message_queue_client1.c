@@ -7,24 +7,14 @@
 #include <string.h>
 #include "msg_data.h"
 #include <pthread.h>
+#include <time.h>
 
 #define NUMTHRDS 3 // 쓰레드 개수
+#define BILLION 1000000000L;
+
 pthread_t callThd[NUMTHRDS]; // 쓰레드 3개 생성 할 것임
 pthread_mutex_t dbmutex; // DB MUTEX
 
-struct real_data{
-   char userID[50];
-   char password[50];
-   char sex[10];
-   char mobile[50];
-   char email[50];
-   int sequence;
-};
-
-struct message{
-   long msg_type;// 0 is insert into MYSQL DATABASE;
-   struct real_data data;
-};
 
 int sequence = 0; // sequence number
 struct message join();
@@ -44,15 +34,15 @@ int main(){
 
     for(i = 0; i<3; i++){ //삽입할  회원정보 3번 기입
         menu();
-   scanf("%d",&num);
-   if(num == 1){
+	scanf("%d",&num);
+	if(num == 1){
              msg[i] = join(); // 세번 가입하여 msg[i] 에 3개 저장
-   }else if(num ==2){
-      return 0;
-   }else{
-      printf("try again");
-      continue;
-   }
+	}else if(num ==2){
+		return 0;
+	}else{
+		printf("try again");
+		continue;
+	}
 
     }
     pthread_mutex_init(&dbmutex, NULL); // Initialize mutex    
@@ -107,6 +97,9 @@ void* mysql_query(void *arg){
     key_t key = 60090; // IPC KEY 값
     struct message *msg = (struct message*)arg;
     int msqid; // message queue id
+	struct timespec start,stop; // 사용한 IPC 기법에 따른 성능 차이를 측정하기 위해서
+	double accum; // 시간 측정값 받기 위한 변수
+
 
     if((msqid = msgget(key, IPC_CREAT|0666)) == -1){
         printf("msgget failed\n");
@@ -118,12 +111,22 @@ void* mysql_query(void *arg){
     printf("sequence: %d\n",sequence);
     pthread_mutex_unlock(&dbmutex); 
     printMsgInfo(msqid);
+	if(clock_gettime(CLOCK_MONOTONIC,&start) == -1){ // Message IPC 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 start
+		perror("clock gettime");
+		pthread_exit(NULL);
+	}
     if(msgsnd(msqid, msg, sizeof(struct real_data),0) == -1){
         printf("msgnd failed\n");
         exit(0);
     }
+	if(clock_gettime(CLOCK_MONOTONIC, &stop) == -1){ // Message IPC 기법을 이용해서 Message 를 Send 할 때, 걸리는 시간 측정 위해서 stop
+		perror("clock gettime");
+		pthread_exit(NULL);
+	}
 
-    printf("message sent\n");
+	accum = (stop.tv_sec - start.tv_sec) + (double)(stop.tv_nsec - start.tv_nsec) / (double)BILLION;
+	printf("message sent\n");
+	printf("메시지 send하는데 걸리는 시간 : %.9f\n",accum);
     printMsgInfo(msqid);
 }
 
@@ -146,8 +149,15 @@ struct message join(){
             continue;
         }
         printf("\n");
-        printf("3) 성별을 입력하시오 : ");
-        scanf("%s",data.sex);
+        printf("3) 성별을 입력하시오 : (MEN or WOMEN)");
+        while(1){
+            scanf("%s",data.sex);
+            if(!strcmp(data.sex,"MEN")){
+            	break;
+            }else if(!strcmp(data.sex,"WOMEN")){
+            	break;
+            }else printf("try again\n");
+        }
         printf("\n");
         printf("4) 전화번호를 입력하시오 :");
         scanf("%s",data.mobile);
