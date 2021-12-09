@@ -49,7 +49,7 @@ int main(){
     pthread_attr_init(&attr); // pthread attribute's initialize
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); // pthread attribute SET JOINABLE
 
-    for(i=0; i<NUMTHRDS; i++){ // thread 3 created
+    for(i=0; i<NUMTHRDS; i++){ // 쓰레드 3 개 생성하는 반복문
         tid = pthread_create(&callThd[i], &attr,mysql_query, (void*)&msg[i]);
         if(tid < 0){
             perror("thread create error : ");
@@ -57,11 +57,12 @@ int main(){
         }
     }
 
-    pthread_attr_destroy(&attr);
-    pthread_mutex_destroy(&dbmutex); // destroy
+    
     for(i=0; i<NUMTHRDS; i++){
         pthread_join(callThd[i], (void**)status);
     }
+    pthread_attr_destroy(&attr);
+    pthread_mutex_destroy(&dbmutex); // dbmutex destroy
     pthread_exit(NULL);
 
     return 0;
@@ -105,7 +106,7 @@ void* mysql_query(void *arg){
         printf("msgget failed\n");
         exit(0);
     }
-    msg->msg_type = 1; // insert
+    msg->msg_type = 1; // 삽입시 type
     pthread_mutex_lock(&dbmutex);
     msg->data.sequence = ++sequence;
     printf("sequence: %d\n",sequence);
