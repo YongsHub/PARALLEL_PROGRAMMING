@@ -43,7 +43,7 @@ int main(int argc, char* agrv[])
     
 
 
-    mysql_init(&conn_ptr);    //mssql initialize   
+    mysql_init(&conn_ptr);    //mysql 초기화  
 
     
     if(!mysql_real_connect(&conn_ptr, "127.0.0.1", "root", "5201", "unix_user", 0, NULL, 0))// if user disconnect to DATABASE, exit(1)
@@ -53,7 +53,7 @@ int main(int argc, char* agrv[])
     }
 
 
-        /*IN here, we need to make Multi-Thread like 0: Insert, 1: Delete 2: Update 3: Read */
+        /*IN here, we need to make Multi-Thread like 0: Insert, 1 */
         for(i=0; i<NUMTHRDS; i++){//Thread NUM MAKES LOOP
        		 tid = pthread_create(&callThd[i], &attr,query_insert,(void*)&msg[i]);
        		 if(tid < 0){
@@ -70,7 +70,7 @@ int main(int argc, char* agrv[])
 	} 
 	pthread_mutex_destroy(&dbmutex); // destroy
 	printf("PRINT DATABASE\n");
-	query_execute();
+	query_execute(); // select * from users; 를 실행해주는 함수
 	unlink("./FIFO1"); // rm FIFO1
 	unlink("./FIFO2"); // rm FIFO2
 	pthread_exit(NULL);
