@@ -57,10 +57,10 @@ int main(){
     }
 
     pthread_attr_destroy(&attr);
-    pthread_mutex_destroy(&dbmutex); // destroy
     for(i=0; i<NUMTHRDS; i++){
         pthread_join(callThd[i], (void**)status);
     }
+    pthread_mutex_destroy(&dbmutex); // destroy
     pthread_exit(NULL);
 
     return 0;
